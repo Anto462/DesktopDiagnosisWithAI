@@ -4,6 +4,7 @@ import pyttsx3
 import webbrowser
 import subprocess
 import os
+import sys
 import psutil
 from psutil._common import bytes2human
 import wmi
@@ -118,7 +119,6 @@ def generate_response(prompt):
                      f"Paquetes enviados: {paquetesEnviados}\n"
                      f"Paquetes recibidos: {paquetesRecibidos}\n\n"
                  )
-            print(infoRed)
             #--------------------------------PROCESOS EN CURSO---------------------------------------
             for proceso in psutil.process_iter(): #Se llama la verificacion del gpu por primera vez
                 proceso.cpu_percent() #Esto es por el como psutil calcula este uso de cpu
@@ -150,7 +150,11 @@ def generate_response(prompt):
             #--------------------------------IMPRESION Y RESPUESTA---------------------------------------
             response = "Datos del Cpu: \n" + infoCpu +  "Datos de memoria: \n" + infoMemoria + "Datos de red: \n" + infoRed + "Datos de procesos: \n" + response
             return response
-        
+        elif "salir" in prompt:
+            mensajeSalida = "Gracias por utilizar nuestro sistema."
+            print(mensajeSalida)
+            sys.exit(0)
+            return mensajeSalida
         else: #Aqui se tiene que enviar la info de sistema a gpt, deberia ser asi
             #GPT-4
             response = openai.ChatCompletion.create(
