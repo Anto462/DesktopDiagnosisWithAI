@@ -10,6 +10,7 @@ from psutil._common import bytes2human
 import wmi
 import time
 import socket
+import pandas as pd
 
 
 #APIkEY
@@ -77,6 +78,44 @@ def generate_response(prompt):
                      f"Porcentaje de memoria en uso: {miMemoriaPorctEnUso}\n"
                      f"Cantidad de gigas en uso: {miMemoriaEnUso}\n\n"
                  )
+            #--------------------------------SERVICIOS DE WINDOWS---------------------------------------
+            #pos la ruta
+            excel_path = "DiagnosticoDePcPorAI//Data//servicestodisable.xlsx"
+            
+            # #df es el excel
+            df = pd.read_excel(excel_path)
+            
+            #Normalizar exce
+            df.columns = df.columns.str.strip()
+            df['Service Name'] = df['Service Name'].str.strip()
+            
+            numeroServicio = 0
+            misServiciosWin = psutil.win_service_iter()
+            
+            print("Buscando servicios en ejecución anomalos que se pueden deshabilitar:\n")
+            time.sleep(0.5) #Se da un tiempo para la correcta carga del excl y psuntil   
+            
+            for servicio in misServiciosWin:
+                if servicio.status() == "running": #Si el servicio esta ejecutandose
+                    name = servicio.name()  #Nombre servicio
+                    pid = servicio.pid()  #PID servicio
+                    start_type = servicio.start_type()  #Tipo de inicio
+                    description = servicio.display_name()  #Desc
+                    
+                    match = df[df['Service Name'] == name] #Se usara como match el excel con los servicios que se pueden deshabilitar
+                    if not match.empty and match.iloc[0]['Recommendation'] == "OK to disable": #Si hay match y se puede deshabilitar
+                        numeroServicio += 1 #Se suma uno a los servicios
+                        
+                        infoServicios = ( #Se guarda la info del servicio
+                                         f"Servicio número {numeroServicio}: {name}\n"
+                                         f"PID: {pid if pid is not None else 'Sin PID'}\n"
+                                         f"Estado del servicio: activo\n"
+                                         f"Tipo de inicio: {start_type}\n"
+                                         f"Descripción del servicio: {description}\n"
+                                         f"Recomendación: {match.iloc[0]['Recommendation']}\n\n"
+                                         )
+            if infoServicios == "": ##Si no hay info
+                infoServicios = "No se encuentran servicios anomalos" #Si no hay pues se dice que no hay
             #--------------------------------RED---------------------------------------
             infoRed  = ""
             miRed = psutil.net_io_counters(pernic=True) #Detalles de trafico en red
@@ -148,7 +187,7 @@ def generate_response(prompt):
                 response = respuesta
                 
             #--------------------------------IMPRESION Y RESPUESTA---------------------------------------
-            response = "Datos del Cpu: \n" + infoCpu +  "Datos de memoria: \n" + infoMemoria + "Datos de red: \n" + infoRed + "Datos de procesos: \n" + response
+            response = "Datos del Cpu: \n" + infoCpu +  "Datos de memoria: \n" + infoMemoria + "Datos de red: \n" + infoRed + "Datos de servicios: \n" + infoServicios + "Datos de procesos: \n" + response
             return response
         elif "salir" in prompt:
             mensajeSalida = "Gracias por utilizar nuestro sistema."
