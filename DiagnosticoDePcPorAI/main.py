@@ -1,4 +1,5 @@
 import openai
+from groq import Groq
 import speech_recognition as sr
 import pyttsx3
 import webbrowser
@@ -12,7 +13,7 @@ import time
 import socket
 import pandas as pd
 
-
+datosDePc = ""
 #APIkEY
 openai.api_key = "" #La key personal de Open AI, si es una app ya lanzada aqui iria el api de la empresa
 
@@ -36,6 +37,7 @@ def transcribe_audio_to_text(filename): #Pasa audio a texto
 
 #Generacion y comportamiento de la IA
 def generate_response(prompt):
+    global datosDePc
     try:
         if "abrir pagina" in prompt:
             url = prompt.replace("abrir pagina ", "").strip()
@@ -158,6 +160,15 @@ def generate_response(prompt):
                      f"Paquetes enviados: {paquetesEnviados}\n"
                      f"Paquetes recibidos: {paquetesRecibidos}\n\n"
                  )
+                infoRedApi = ( #Muestra de informacion
+                     f"Detalles de la red - {interface}:\n"
+                     f"Estado activo: {upOrDown}\n"
+                     f"Velocidad: {velocidad}\n"
+                     f"Bytes enviados: {bytesEnviados} bytes\n"
+                     f"Bytes recibidos: {bytesRecibidos} bytes\n"
+                     f"Paquetes enviados: {paquetesEnviados}\n"
+                     f"Paquetes recibidos: {paquetesRecibidos}\n\n"
+                 )
             #--------------------------------PROCESOS EN CURSO---------------------------------------
             for proceso in psutil.process_iter(): #Se llama la verificacion del gpu por primera vez
                 proceso.cpu_percent() #Esto es por el como psutil calcula este uso de cpu
@@ -188,6 +199,7 @@ def generate_response(prompt):
                 
             #--------------------------------IMPRESION Y RESPUESTA---------------------------------------
             response = "Datos del Cpu: \n" + infoCpu +  "Datos de memoria: \n" + infoMemoria + "Datos de red: \n" + infoRed + "Datos de servicios: \n" + infoServicios + "Datos de procesos: \n" + response
+            datosDePc = "Datos del Cpu: \n" + infoCpu +  "Datos de memoria: \n" + infoMemoria + "Datos de red: \n" + infoRedApi + "Datos de servicios: \n" + infoServicios + "Datos de procesos: \n" + response
             return response
         elif "salir" in prompt:
             mensajeSalida = "Gracias por utilizar nuestro sistema."
@@ -195,16 +207,22 @@ def generate_response(prompt):
             sys.exit(0)
             return mensajeSalida
         else: #Aqui se tiene que enviar la info de sistema a gpt, deberia ser asi
-            #GPT-4
-            response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo-0125",
-                #Intrucciones
-                messages=[{"role": "system", "content": "Eres un asistente personal, Tu objetivo es verificar la informacion de una pc y asi ver el status y dar retroalimentacion de el estado del PC."}, 
-                          {"role": "user", "content": prompt}],
-                max_tokens=500,
-                temperature=0.5,
-            )
-            return response["choices"][0]["message"]["content"]
+            client = Groq(api_key="")
+            mensaje = prompt + "\n Los de detalles de mi PC son: \n\n" + datosDePc
+            chat_completion = client.chat.completions.create(messages=[
+                {
+                    "role": "system",
+                    "content": "Eres un sistema de diagnostico de computadores, Brindaras apoyo a un p´roblema que presente el usuario en base a la informacion de la computadora del mismo. Esto lo haras de manera precisa verificando cada detalle que te brinde el cliente de su pc."
+                    },
+                {
+                    "role": "user",
+                    "content": mensaje
+                    }
+                ],
+                                                             model="llama3-8b-8192",
+                                                             temperature=0.5
+                                                             )
+            return(chat_completion.choices[0].message.content)
     except Exception as e:
         return f"Error al generar la respuesta: {e}"
 
