@@ -14,6 +14,11 @@ import socket
 import pandas as pd
 
 datosDePc = ""
+infoCpu = "" #para guardar la info
+infoMemoria = "" #Pa guardar la info
+infoServicios = "" #Pa guardar la info 
+infoRed  = "" #Pa guardar la info 
+infoprocesos = "" #Pa guardar la info 
 #APIkEY
 openai.api_key = "" #La key personal de Open AI, si es una app ya lanzada aqui iria el api de la empresa
 
@@ -38,6 +43,11 @@ def transcribe_audio_to_text(filename): #Pasa audio a texto
 #Generacion y comportamiento de la IA
 def generate_response(prompt):
     global datosDePc
+    global infoCpu
+    global infoMemoria
+    global infoServicios
+    global infoRed
+    global infoprocesos
     try:
         if "abrir pagina" in prompt:
             url = prompt.replace("abrir pagina ", "").strip()
@@ -195,6 +205,7 @@ def generate_response(prompt):
                     f"Uso de Disco: {usodeldisco} bytes\n\n"
                 )
                 respuesta += procesoEnCurso
+                infoprocesos = respuesta
                 response = respuesta
                 
             #--------------------------------IMPRESION Y RESPUESTA---------------------------------------
@@ -206,13 +217,13 @@ def generate_response(prompt):
             print(mensajeSalida)
             sys.exit(0)
             return mensajeSalida
-        else: #Aqui se tiene que enviar la info de sistema a gpt, deberia ser asi
+        else: #Aqui se tiene que enviar la info de sistema a GroqAi, deberia ser asi
             client = Groq(api_key="")
             mensaje = prompt + "\n Los de detalles de mi PC son: \n\n" + datosDePc
             chat_completion = client.chat.completions.create(messages=[
                 {
                     "role": "system",
-                    "content": "Eres un sistema de diagnostico de computadores, Brindaras apoyo a un p´roblema que presente el usuario en base a la informacion de la computadora del mismo. Esto lo haras de manera precisa verificando cada detalle que te brinde el cliente de su pc."
+                    "content": "Eres un sistema de diagnostico de computadores, Brindaras apoyo a un p´roblema que presente el usuario en base a la informacion de la computadora del mismo. Esto lo haras de manera precisa verificando cada detalle que te brinde el cliente de su pc. En la respuesta daras un analisis general de la PC asi como recomendaciones."
                     },
                 {
                     "role": "user",
@@ -222,7 +233,57 @@ def generate_response(prompt):
                                                              model="llama3-8b-8192",
                                                              temperature=0.5
                                                              )
-            return(chat_completion.choices[0].message.content)
+            resultado = chat_completion.choices[0].message.content
+            if resultado:
+                from docx import Document
+                from docx.shared import Cm
+                import os
+                
+                document = Document()
+                style = document.styles['Normal']
+                style.font.name = 'Calibri'
+                header_section = document.sections[0]
+                header = header_section.header
+                header_text = header.paragraphs[0]
+                header_text.text = "--DIAGNOSTICOS PC: Grupo 1--"
+                
+                document.add_heading('Analisis de Pc mediante AI', 0)
+                
+                document.add_picture('DiagnosticoDePcPorAI\\ai.png', width=Cm(5))
+                
+                p = document.add_paragraph('Se muestra la informacion extraida de la PC:')
+                
+                document.add_heading('CPU')
+                p = document.add_paragraph(infoCpu)
+                
+                document.add_heading('Memoria')
+                p = document.add_paragraph(infoMemoria)
+                
+                document.add_heading('Servicios')
+                p = document.add_paragraph(infoServicios)
+                
+                document.add_heading('Red')
+                p = document.add_paragraph(infoRed)
+                
+                document.add_heading('Procesos')
+                p = document.add_paragraph(infoprocesos)
+                
+                document.add_page_break()
+                
+                document.add_heading('Recomendaciones y Analisis')
+                p = document.add_paragraph(resultado)
+                
+                
+                document.save('DiagnosticoDePcPorAI\\Analisis.docx')
+                
+                from docx2pdf import convert
+                docx_file = 'DiagnosticoDePcPorAI\\Analisis.docx'
+                pdf_file = 'DiagnosticoDePcPorAI\\Analisis.pdf'
+                
+                convert(docx_file, pdf_file)
+            else:
+                print("No se logro optener respuesta de la AI")
+        return(chat_completion.choices[0].message.content)
     except Exception as e:
         return f"Error al generar la respuesta: {e}"
 
